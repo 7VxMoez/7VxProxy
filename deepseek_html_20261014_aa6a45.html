@@ -1,0 +1,2479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7VxProxy · Haunted Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ================================================================
+           RESET & BASE
+           ================================================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --blood: #8b0000;
+            --blood-bright: #dc2626;
+            --blood-dark: #4a0000;
+            --ghost: rgba(255, 255, 255, 0.85);
+            --bg: #050005;
+            --bg-surface: #0a0008;
+            --bg-elevated: #110008;
+            --border-blood: #3a0000;
+            --border-glow: #5a0000;
+            --text-primary: #e8d5d5;
+            --text-secondary: #a08080;
+            --text-muted: #5a3a3a;
+            --font-display: 'Georgia', 'Palatino Linotype', serif;
+            --font-body: 'Georgia', 'Palatino Linotype', serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            font-family: var(--font-body);
+            position: relative;
+        }
+
+        ::selection {
+            background: #7f1d1d;
+            color: #fff;
+        }
+
+        /* ================================================================
+           HORROR BACKGROUND - Fog + Blood Drip
+           ================================================================ */
+        .horror-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        /* Fog layers */
+        .horror-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 40% at 50% 60%, rgba(80, 0, 0, 0.25) 0%, transparent 70%),
+                radial-gradient(ellipse 80% 30% at 30% 100%, rgba(0, 0, 0, 0.8) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 30% at 70% 20%, rgba(60, 0, 0, 0.2) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        /* Blood drip from top */
+        .horror-bg::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg,
+                transparent 10%, var(--blood) 20%, var(--blood-bright) 30%,
+                transparent 40%, var(--blood) 55%, var(--blood-bright) 70%,
+                transparent 80%
+            );
+            box-shadow: 0 0 12px var(--blood), 0 0 30px rgba(139, 0, 0, 0.5);
+        }
+
+        /* Floating fog orbs */
+        .fog-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(150px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        .fog-orb.red {
+            width: 600px;
+            height: 600px;
+            background: var(--blood);
+            top: -200px;
+            right: -150px;
+        }
+
+        .fog-orb.dark {
+            width: 700px;
+            height: 700px;
+            background: #1a0000;
+            bottom: -300px;
+            left: -200px;
+        }
+
+        /* Subtle grain overlay */
+        .horror-bg .grain {
+            position: absolute;
+            inset: 0;
+            opacity: 0.25;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+            background-size: 180px 180px;
+        }
+
+        /* ================================================================
+           SCROLL REVEAL
+           ================================================================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.08s; }
+        .reveal-delay-2 { transition-delay: 0.16s; }
+        .reveal-delay-3 { transition-delay: 0.24s; }
+        .reveal-delay-4 { transition-delay: 0.32s; }
+        .reveal-delay-5 { transition-delay: 0.4s; }
+        .reveal-delay-6 { transition-delay: 0.48s; }
+
+        /* ================================================================
+           WRAPPER
+           ================================================================ */
+        .wrapper {
+            max-width: 1500px;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ================================================================
+           HEADER - Spooky Style
+           ================================================================ */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-blood);
+            padding-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--blood), transparent);
+            box-shadow: 0 0 15px var(--blood);
+        }
+
+        .logo h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--ghost);
+            text-shadow:
+                -2px 0 rgba(180, 0, 0, 0.45),
+                2px 0 rgba(100, 0, 0, 0.45),
+                0 0 24px rgba(139, 0, 0, 0.5);
+            display: inline-block;
+            font-family: var(--font-display);
+        }
+
+        .logo span {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 12px;
+            letter-spacing: 4px;
+            background: var(--bg-surface);
+            padding: 4px 14px;
+            border-radius: 40px;
+            border: 1px solid var(--border-blood);
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ================================================================
+           POWERED BY - Twitching Horror Text
+           ================================================================ */
+        .powered {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            background: rgba(10, 0, 8, 0.8);
+            padding: 0.6rem 1.4rem;
+            border-radius: 100px;
+            border: 1px solid var(--border-blood);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+        }
+
+        .powered::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(139, 0, 0, 0.15), transparent 70%);
+            pointer-events: none;
+        }
+
+        .powered i {
+            color: var(--blood-bright);
+            font-size: 1rem;
+            text-shadow: 0 0 12px var(--blood);
+            animation: flicker 4s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0%, 90%, 100% { opacity: 1; }
+            92% { opacity: 0.3; }
+            94% { opacity: 1; }
+            96% { opacity: 0.5; }
+            98% { opacity: 1; }
+        }
+
+        .powered .powered-text {
+            color: var(--ghost);
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        /* Twitching text for the name */
+        .twitch-text {
+            display: inline-block;
+            font-weight: 700;
+            color: var(--ghost);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow:
+                -2px 0 rgba(180, 0, 0, 0.45),
+                2px 0 rgba(100, 0, 0, 0.45),
+                0 0 24px rgba(139, 0, 0, 0.5);
+            animation: twitch 3s steps(1) infinite;
+            font-family: var(--font-display);
+        }
+
+        @keyframes twitch {
+            0% {
+                text-shadow: -2px 0 rgba(180, 0, 0, 0.45), 2px 0 rgba(100, 0, 0, 0.45), 0 0 24px rgba(139, 0, 0, 0.5);
+                transform: translate(0, 0);
+            }
+            12% {
+                text-shadow: -6px 0 var(--blood-bright), 6px 0 rgba(255, 100, 100, 0.7), 0 2px 24px var(--blood);
+                transform: translate(-5px, 2px);
+            }
+            16% {
+                text-shadow: -2px 0 rgba(180, 0, 0, 0.45), 2px 0 rgba(100, 0, 0, 0.45), 0 0 24px rgba(139, 0, 0, 0.5);
+                transform: translate(0, 0);
+            }
+            27% {
+                text-shadow: 10px -4px var(--blood), -10px 4px rgba(255, 0, 0, 0.5), 0 0 48px rgba(139, 0, 0, 0.85);
+                transform: translate(7px, -4px);
+            }
+            30%, 34%, 60%, 84%, 100% {
+                text-shadow: -2px 0 rgba(180, 0, 0, 0.45), 2px 0 rgba(100, 0, 0, 0.45), 0 0 24px rgba(139, 0, 0, 0.5);
+                transform: translate(0, 0);
+            }
+            32% {
+                text-shadow: 5px 0 rgba(255, 100, 100, 0.9), -5px 0 var(--blood);
+                transform: translate(3px, 0);
+            }
+            55% {
+                text-shadow: -16px 6px var(--blood-bright), 16px -6px rgba(180, 0, 0, 0.85), 0 0 72px rgba(139, 0, 0, 0.65);
+                transform: translate(-9px, 5px);
+            }
+            58% {
+                text-shadow: 9px -3px rgba(255, 50, 50, 0.75);
+                transform: translate(5px, -3px);
+            }
+            78% {
+                text-shadow: -5px 10px var(--blood), 5px -10px rgba(255, 200, 200, 0.4);
+                transform: translate(-3px, 7px);
+            }
+            81% {
+                text-shadow: -2px 0 rgba(180, 0, 0, 0.45), 2px 0 rgba(100, 0, 0, 0.45), 0 0 24px rgba(139, 0, 0, 0.5);
+                transform: translate(0, 0);
+            }
+            93% {
+                text-shadow: -22px 0 var(--blood-bright), 22px 0 rgba(100, 0, 0, 1), 0 0 90px rgba(139, 0, 0, 0.75);
+                transform: translate(-12px, 0);
+            }
+            96% {
+                text-shadow: 12px 8px var(--blood);
+                transform: translate(7px, 5px);
+            }
+        }
+
+        /* ================================================================
+           ADMIN BUTTON - Horror Style
+           ================================================================ */
+        .admin-btn {
+            background: rgba(10, 0, 8, 0.8);
+            border: 1px solid var(--border-blood);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.6rem 1.3rem;
+            border-radius: 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+        }
+
+        .admin-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(139, 0, 0, 0.2), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .admin-btn:hover {
+            background: rgba(30, 0, 15, 0.95);
+            border-color: var(--blood-bright);
+            color: var(--blood-bright);
+            box-shadow: 0 0 30px rgba(139, 0, 0, 0.4), inset 0 0 20px rgba(139, 0, 0, 0.1);
+            text-shadow: 0 0 10px var(--blood-bright);
+        }
+
+        .admin-btn:hover::before {
+            opacity: 1;
+        }
+
+        .admin-btn i {
+            font-size: 0.9rem;
+        }
+
+        /* ================================================================
+           STATS BAR
+           ================================================================ */
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.75rem;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .link-count {
+            background: rgba(10, 0, 8, 0.8);
+            border: 1px solid var(--border-blood);
+            padding: 0.55rem 1.5rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 1px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(139, 0, 0, 0.1);
+        }
+
+        .link-count i {
+            color: var(--blood-bright);
+            text-shadow: 0 0 10px var(--blood);
+        }
+
+        .search-box {
+            position: relative;
+            min-width: 300px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--blood);
+            font-size: 0.95rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(10, 0, 8, 0.8);
+            border: 1px solid var(--border-blood);
+            padding: 0.8rem 1rem 0.8rem 2.8rem;
+            border-radius: 60px;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: 0.3s;
+            font-family: var(--font-body);
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(8px);
+        }
+
+        .search-box input:focus {
+            border-color: var(--blood-bright);
+            box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.2), 0 0 25px rgba(139, 0, 0, 0.3);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* ================================================================
+           CATEGORY SECTION - Horror Style
+           ================================================================ */
+        .category {
+            margin-bottom: 2.5rem;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            gap: 12px;
+            position: relative;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(139, 0, 0, 0.2);
+        }
+
+        .category-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--blood), transparent);
+            box-shadow: 0 0 10px var(--blood);
+        }
+
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--ghost);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+            text-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
+        }
+
+        .category-title .emoji-badge {
+            font-size: 1.6rem;
+            filter: drop-shadow(0 0 8px rgba(139, 0, 0, 0.6));
+        }
+
+        .category-title .count-badge {
+            background: rgba(139, 0, 0, 0.2);
+            border: 1px solid var(--border-blood);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.25rem 0.85rem;
+            border-radius: 40px;
+            margin-left: 6px;
+            letter-spacing: 1px;
+            font-family: var(--font-body);
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            background: rgba(10, 0, 8, 0.8);
+            border: 1px solid var(--border-blood);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.5rem 1.1rem;
+            border-radius: 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: 0.3s;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-sm i {
+            font-size: 0.7rem;
+            color: var(--blood);
+        }
+
+        .btn-sm:hover {
+            background: rgba(30, 0, 15, 0.95);
+            border-color: var(--blood-bright);
+            color: var(--blood-bright);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.3);
+            text-shadow: 0 0 8px var(--blood-bright);
+        }
+
+        .btn-sm:hover i {
+            color: var(--blood-bright);
+            text-shadow: 0 0 8px var(--blood-bright);
+        }
+
+        /* ================================================================
+           LINK GRID - Horror Style Cards
+           ================================================================ */
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1rem;
+        }
+
+        .card {
+            background: rgba(10, 0, 8, 0.7);
+            border: 1px solid var(--border-blood);
+            border-radius: 18px;
+            padding: 1.2rem 1.1rem 1rem 1.1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(139, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--blood), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--blood-bright);
+            background: rgba(20, 0, 12, 0.85);
+            transform: translateY(-3px);
+            box-shadow:
+                0 12px 30px -8px rgba(0, 0, 0, 0.8),
+                0 0 30px rgba(139, 0, 0, 0.25),
+                inset 0 0 30px rgba(139, 0, 0, 0.08);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .url-display {
+            font-size: 0.82rem;
+            font-weight: 500;
+            word-break: break-all;
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            background: rgba(5, 0, 5, 0.8);
+            padding: 0.8rem 0.95rem;
+            border-radius: 12px;
+            border-left: 3px solid var(--blood);
+            letter-spacing: 0.3px;
+            flex: 1;
+            position: relative;
+            font-family: 'Courier New', monospace;
+        }
+
+        .url-display::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--blood-bright), var(--blood), transparent);
+            box-shadow: 0 0 10px var(--blood);
+        }
+
+        .url-display i {
+            color: var(--blood-bright);
+            margin-right: 8px;
+            font-size: 0.75rem;
+            text-shadow: 0 0 8px var(--blood);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .btn {
+            border: none;
+            background: rgba(15, 0, 10, 0.8);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.55rem 0.85rem;
+            border-radius: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid var(--border-blood);
+            flex: 1 0 auto;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .btn i {
+            font-size: 0.72rem;
+            color: var(--blood);
+        }
+
+        .btn:hover {
+            background: rgba(30, 0, 15, 0.95);
+            border-color: var(--blood-bright);
+            color: var(--blood-bright);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.3);
+            text-shadow: 0 0 8px var(--blood-bright);
+        }
+
+        .btn:hover i {
+            color: var(--blood-bright);
+            text-shadow: 0 0 8px var(--blood-bright);
+        }
+
+        .btn-copy:hover { border-color: var(--blood-bright); }
+        .btn-open:hover { border-color: #dc2626; }
+        .btn-blank:hover { border-color: #ff4444; }
+
+        /* ================================================================
+           TOAST - Horror Style
+           ================================================================ */
+        .toast-message {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(20, 0, 12, 0.95);
+            color: var(--ghost);
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9), 0 0 30px rgba(139, 0, 0, 0.3);
+            border: 1px solid var(--blood);
+            transform: translateY(90px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+            pointer-events: none;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(12px);
+            letter-spacing: 1px;
+            font-family: var(--font-display);
+        }
+
+        .toast-message.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-message i {
+            color: var(--blood-bright);
+            font-size: 1.2rem;
+            text-shadow: 0 0 12px var(--blood);
+        }
+
+        /* ================================================================
+           FOOTER - Horror Style
+           ================================================================ */
+        footer {
+            margin-top: 3.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(139, 0, 0, 0.2);
+            padding-top: 1.8rem;
+            width: 100%;
+            letter-spacing: 1.5px;
+            font-family: var(--font-display);
+            position: relative;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--blood), transparent);
+            box-shadow: 0 0 15px var(--blood);
+        }
+
+        footer i {
+            color: var(--blood-bright);
+            margin: 0 4px;
+            text-shadow: 0 0 10px var(--blood);
+        }
+
+        .no-result {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+            font-size: 1rem;
+            background: rgba(10, 0, 8, 0.7);
+            border-radius: 30px;
+            border: 1px dashed var(--border-blood);
+            letter-spacing: 1px;
+            font-style: italic;
+            backdrop-filter: blur(8px);
+        }
+
+        ::-webkit-scrollbar { width: 8px; background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border-blood); border-radius: 20px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--blood); }
+
+        /* ================================================================
+           ADMIN PANEL - Horror Style
+           ================================================================ */
+        .admin-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 0, 3, 0.92);
+            backdrop-filter: blur(16px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .admin-overlay.active {
+            display: flex;
+        }
+
+        .admin-panel {
+            background: rgba(10, 0, 8, 0.98);
+            border: 1px solid var(--border-blood);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 32px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95), 0 0 60px rgba(139, 0, 0, 0.2);
+            position: relative;
+            backdrop-filter: blur(20px);
+        }
+
+        .admin-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--blood), var(--blood-bright), var(--blood), transparent);
+            box-shadow: 0 0 20px var(--blood);
+        }
+
+        .admin-panel h2 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--ghost);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+            text-shadow: 0 0 20px rgba(139, 0, 0, 0.5);
+        }
+
+        .admin-panel h2 i {
+            color: var(--blood-bright);
+            text-shadow: 0 0 15px var(--blood);
+        }
+
+        .admin-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 0, 10, 0.8);
+            border: 1px solid var(--border-blood);
+            color: var(--text-secondary);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 1.1rem;
+        }
+
+        .admin-close:hover {
+            background: rgba(30, 0, 15, 0.95);
+            border-color: var(--blood-bright);
+            color: var(--blood-bright);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.3);
+        }
+
+        .admin-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .admin-form-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .admin-form-row input,
+        .admin-form-row select {
+            flex: 1;
+            min-width: 180px;
+            background: rgba(5, 0, 5, 0.9);
+            border: 1px solid var(--border-blood);
+            padding: 0.85rem 1.1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: 0.3s;
+            font-family: var(--font-body);
+            letter-spacing: 0.5px;
+        }
+
+        .admin-form-row input:focus,
+        .admin-form-row select:focus {
+            border-color: var(--blood-bright);
+            box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.2), 0 0 20px rgba(139, 0, 0, 0.2);
+        }
+
+        .admin-form-row input::placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .admin-form-row select {
+            cursor: pointer;
+        }
+
+        .admin-form-row select option {
+            background: #0a0008;
+        }
+
+        .btn-admin-primary {
+            background: linear-gradient(135deg, var(--blood), var(--blood-bright));
+            border: none;
+            color: #fff;
+            padding: 0.85rem 2rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+            box-shadow: 0 0 25px rgba(139, 0, 0, 0.4);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-admin-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 45px rgba(220, 38, 38, 0.6), 0 0 80px rgba(139, 0, 0, 0.3);
+        }
+
+        .admin-link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(5, 0, 5, 0.8);
+            border: 1px solid var(--border-blood);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            transition: 0.3s;
+        }
+
+        .admin-link-item:hover {
+            border-color: var(--blood);
+            background: rgba(20, 0, 12, 0.9);
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.15);
+        }
+
+        .admin-link-item .link-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .admin-link-item .link-url {
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            word-break: break-all;
+            line-height: 1.4;
+            font-family: 'Courier New', monospace;
+        }
+
+        .admin-link-item .link-category {
+            font-size: 0.7rem;
+            color: var(--blood-bright);
+            margin-top: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .admin-link-item .link-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .admin-link-item .link-actions button {
+            background: rgba(15, 0, 10, 0.8);
+            border: 1px solid var(--border-blood);
+            color: var(--text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 0.8rem;
+        }
+
+        .admin-link-item .link-actions button:hover {
+            background: rgba(30, 0, 15, 0.95);
+            border-color: var(--blood-bright);
+            color: var(--blood-bright);
+            box-shadow: 0 0 15px rgba(139, 0, 0, 0.3);
+        }
+
+        .admin-link-item .link-actions button.delete-btn:hover {
+            border-color: #ff2d2d;
+            color: #ff2d2d;
+            background: rgba(255, 45, 45, 0.1);
+            box-shadow: 0 0 20px rgba(255, 45, 45, 0.3);
+        }
+
+        .admin-section-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .admin-section-title i {
+            color: var(--blood-bright);
+            text-shadow: 0 0 10px var(--blood);
+        }
+
+        .admin-login {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .admin-login h2 {
+            justify-content: center;
+        }
+
+        .admin-login p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+            font-style: italic;
+        }
+
+        .admin-login input {
+            width: 100%;
+            max-width: 340px;
+            background: rgba(5, 0, 5, 0.9);
+            border: 1px solid var(--border-blood);
+            padding: 1rem 1.2rem;
+            border-radius: 14px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: 0.3s;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 16px;
+            font-family: var(--font-display);
+        }
+
+        .admin-login input:focus {
+            border-color: var(--blood-bright);
+            box-shadow: 0 0 0 4px rgba(139, 0, 0, 0.2), 0 0 30px rgba(139, 0, 0, 0.3);
+        }
+
+        .admin-login input::placeholder {
+            letter-spacing: 4px;
+            color: var(--text-muted);
+        }
+
+        .admin-login .error-msg {
+            color: var(--blood-bright);
+            font-size: 0.85rem;
+            margin-top: 12px;
+            min-height: 20px;
+            text-shadow: 0 0 10px var(--blood);
+            letter-spacing: 1px;
+        }
+
+        /* ================================================================
+           RESPONSIVE
+           ================================================================ */
+        @media (max-width: 700px) {
+            .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .header-right { width: 100%; justify-content: space-between; }
+            .logo h1 { font-size: 2rem; letter-spacing: 4px; }
+            .link-grid { grid-template-columns: 1fr; }
+            .btn { font-size: 0.68rem; padding: 0.5rem 0.6rem; }
+            .stats-bar { flex-direction: column; align-items: stretch; }
+            .search-box { width: 100%; min-width: unset; }
+            .category-header { flex-direction: column; align-items: flex-start; }
+            .admin-panel { padding: 24px 18px; }
+            .admin-form-row { flex-direction: column; }
+            .powered { font-size: 0.8rem; padding: 0.5rem 1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            html { scroll-behavior: auto; }
+            .twitch-text { animation: none; text-shadow: -2px 0 rgba(180,0,0,0.45), 2px 0 rgba(100,0,0,0.45), 0 0 24px rgba(139,0,0,0.5); }
+            .powered i { animation: none; }
+        }
+
+        /* ================================================================
+           FLOATING GHOST TEXT (decorative)
+           ================================================================ */
+        .ghost-decoration {
+            position: fixed;
+            font-size: 8rem;
+            font-weight: 700;
+            letter-spacing: 15px;
+            text-transform: uppercase;
+            color: transparent;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+            animation: ghostAppear 12s steps(1) infinite;
+            font-family: var(--font-display);
+            user-select: none;
+        }
+
+        .ghost-decoration.g1 {
+            top: 30%;
+            left: -5%;
+            animation-delay: 3s;
+        }
+
+        .ghost-decoration.g2 {
+            bottom: 20%;
+            right: -5%;
+            animation-delay: 8s;
+        }
+
+        @keyframes ghostAppear {
+            0%, 90%, 100% { opacity: 0; }
+            92% { opacity: 0.04; color: rgba(255,255,255,0.04); text-shadow: 0 0 30px rgba(139,0,0,0.3); }
+            94% { opacity: 0; }
+            96% { opacity: 0.02; color: rgba(255,255,255,0.02); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Horror Background -->
+    <div class="horror-bg">
+        <div class="grain"></div>
+    </div>
+    <div class="fog-orb red"></div>
+    <div class="fog-orb dark"></div>
+
+    <!-- Decorative ghost text -->
+    <div class="ghost-decoration g1">HAUNTED</div>
+    <div class="ghost-decoration g2">WATCHING</div>
+
+    <div class="wrapper">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <h1>7VxProxy</h1>
+                <span>haunted hub</span>
+            </div>
+            <div class="header-right">
+                <div class="powered">
+                    <i class="fas fa-bolt"></i>
+                    <span class="powered-text">powered by</span>
+                    <span class="twitch-text">Abdul Moez</span>
+                </div>
+                <button class="admin-btn" onclick="openAdmin()">
+                    <i class="fas fa-cog"></i> Admin
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats + Search -->
+        <div class="stats-bar reveal">
+            <div class="link-count" id="totalCountDisplay">
+                <i class="fas fa-skull"></i> <span id="totalCount">0</span> cursed links
+            </div>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search the darkness...">
+            </div>
+        </div>
+
+        <!-- Categories Container -->
+        <div id="categoriesContainer"></div>
+
+        <!-- Footer -->
+        <footer class="reveal">
+            <i class="fas fa-shield-alt"></i> 7VxProxy — enter if you dare
+            <i class="fas fa-circle" style="font-size: 0.3rem; vertical-align: middle; color: var(--blood);"></i>
+            powered by <span class="twitch-text" style="font-size: 0.9rem;">Abdul Moez</span>
+        </footer>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-message" id="toast">
+        <i class="fas fa-skull"></i>
+        <span id="toastText">Link copied!</span>
+    </div>
+
+    <!-- ============ ADMIN PANEL ============ -->
+    <div class="admin-overlay" id="adminOverlay">
+        <div class="admin-panel" id="adminPanel">
+            <button class="admin-close" onclick="closeAdmin()">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <!-- Login View -->
+            <div id="adminLoginView">
+                <h2><i class="fas fa-lock"></i> Forbidden Access</h2>
+                <p>Speak the password to enter the crypt.</p>
+                <div class="admin-login">
+                    <input type="password" id="adminPasswordInput" placeholder="••••••••" onkeydown="if(event.key==='Enter') checkAdminPassword()">
+                    <br>
+                    <button class="btn-admin-primary" onclick="checkAdminPassword()">
+                        <i class="fas fa-key"></i> Unlock
+                    </button>
+                    <div class="error-msg" id="adminError"></div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard View -->
+            <div id="adminDashboardView" style="display:none;">
+                <h2><i class="fas fa-tools"></i> Link Manager</h2>
+
+                <!-- Add Link Form -->
+                <div class="admin-section-title"><i class="fas fa-plus-circle"></i> Add New Link</div>
+                <div class="admin-form">
+                    <div class="admin-form-row">
+                        <input type="text" id="newLinkUrl" placeholder="https://example.com/index.html">
+                        <select id="newLinkCategory">
+                            <option value="">— Select Category —</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-row">
+                        <button class="btn-admin-primary" onclick="addNewLink()">
+                            <i class="fas fa-plus"></i> Add Link
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category Management -->
+                <div class="admin-section-title"><i class="fas fa-folder-plus"></i> Add New Category</div>
+                <div class="admin-form">
+                    <div class="admin-form-row">
+                        <input type="text" id="newCategoryName" placeholder="Category name (e.g. 🩸 Blood Moon)">
+                        <input type="text" id="newCategoryEmoji" placeholder="Emoji (optional)" style="max-width: 120px;">
+                    </div>
+                    <div class="admin-form-row">
+                        <button class="btn-admin-primary" onclick="addNewCategory()">
+                            <i class="fas fa-folder-plus"></i> Add Category
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Existing Links -->
+                <div class="admin-section-title" style="margin-top: 24px;">
+                    <i class="fas fa-list"></i> All Links (<span id="adminLinkCount">0</span>)
+                </div>
+                <div id="adminLinkList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================================================================
+        // 1. DATA STORAGE
+        // ==================================================================
+        const STORAGE_KEY = '7vxproxy_horror_v1';
+        const ADMIN_PASSWORD = 'Musawwer3939sa';
+
+        const DEFAULT_DATA = [
+            { category: "🩸 Blood Kite", emoji: "🩸", links: [
+                "https://s3.amazonaws.com/notly/index.html",
+                "https://s3.amazonaws.com/padx/index.html",
+                "https://notly.s3.amazonaws.com/index.html",
+                "https://padx.s3.amazonaws.com/index.html"
+            ]},
+            { category: "🧋 Cursed Boba", emoji: "🧋", links: [
+                "https://ck.doremusiclessons.com",
+                "https://learnings.govt.hu",
+                "https://goguardian.kchcs.org",
+                "https://contentkeeper.plugs.it",
+                "https://drinkboba.sourcescs.com",
+                "https://hover.aupong.hk",
+                "https://drinkboba.hjshop.net",
+                "https://drinks.hotel-ramina.ro",
+                "https://great.jaaax.net",
+                "https://boba.myapl.org"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://s3.amazonaws.com/kj0e/index.html",
+                "https://kj0e.s3.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/lightspeeds/index.html",
+                "https://lightspeeds.s3.amazonaws.com/index.html"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://studydock.s3.amazonaws.com/index.html",
+                "https://brookprep.s3.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/studydock/index.html",
+                "https://s3.amazonaws.com/brookprep/index.html"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://kson.ksoncompany.com.np",
+                "https://maxy.maryejackson.com",
+                "https://firm.peterwilbers.nl",
+                "https://tech.tsirepfirm.com",
+                "https://brick.bricksrl.com.ar",
+                "https://tools.iamdeinsocial.org.ve",
+                "https://info.rockfordareacoinclub.com",
+                "https://solar.theelectricenergy.com",
+                "https://safe.valuetool.ro",
+                "https://energy.bunkerscorp.com",
+                "https://play.gamepays.com",
+                "https://mary.hendricksonlawfirmpc.com",
+                "https://gqs.greenquarterstudios.com",
+                "https://care.pureplanetpets.com",
+                "https://card.studiosheva.com"
+            ]},
+            { category: "🌌 Void Interstellar", emoji: "🌌", links: [
+                "https://jv7m.z4.web.core.windows.net/",
+                "https://tq4b.z27.web.core.windows.net/",
+                "https://ns8x.z33.web.core.windows.net/",
+                "https://wd2c.z16.web.core.windows.net/",
+                "https://rk6h.z28.web.core.windows.net/"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://raphael.baby",
+                "https://willowprep.s3.amazonaws.com/index.html",
+                "https://willowprep.s3.us-east-1.amazonaws.com/index.html",
+                "https://willowprep.s3-external-1.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/willowprep/index.html",
+                "https://s3.us-east-1.amazonaws.com/willowprep/index.html",
+                "https://s3-external-1.amazonaws.com/willowprep/index.html",
+                "https://aspenstudy.s3.amazonaws.com/index.html",
+                "https://aspenstudy.s3.us-east-1.amazonaws.com/index.html",
+                "https://aspenstudy.s3-external-1.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/aspenstudy/index.html",
+                "https://s3.us-east-1.amazonaws.com/aspenstudy/index.html",
+                "https://s3-external-1.amazonaws.com/aspenstudy/index.html",
+                "https://juniperdesk.s3.amazonaws.com/index.html",
+                "https://juniperdesk.s3.us-east-1.amazonaws.com/index.html",
+                "https://juniperdesk.s3-external-1.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/juniperdesk/index.html",
+                "https://s3.us-east-1.amazonaws.com/juniperdesk/index.html",
+                "https://s3-external-1.amazonaws.com/juniperdesk/index.html",
+                "https://t.texxus.com.ar",
+                "https://tt.molnarjozsias.ro",
+                "https://tt.lukestadem.com"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://lumivex.s3.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/lumivex/index.html",
+                "https://lumivex.s3.us-east-1.amazonaws.com/index.html",
+                "https://novarix.s3.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/novarix/index.html",
+                "https://novarix.s3.us-east-1.amazonaws.com/index.html",
+                "https://stb.molnarjozsias.ro",
+                "https://stb.lukestadem.com"
+            ]},
+            { category: "🐕 Demon Dogeub", emoji: "🐕", links: [
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/cedarprep/o/index.html",
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/willowlab/o/index.html",
+                "https://h6a4.z22.web.core.windows.net/",
+                "https://shk6.z20.web.core.windows.net/",
+                "https://meqy.z21.web.core.windows.net/",
+                "https://ruzn.z1.web.core.windows.net/",
+                "https://bljd.z4.web.core.windows.net/"
+            ]},
+            { category: "🩸 Blood Kite", emoji: "🩸", links: [
+                "https://fcis.z19.web.core.windows.net/",
+                "https://tzf8.z5.web.core.windows.net/",
+                "https://ltih.z27.web.core.windows.net/",
+                "https://g5ww.z33.web.core.windows.net/",
+                "https://mumd.z16.web.core.windows.net/"
+            ]},
+            { category: "✨ Phantom Glim", emoji: "✨", links: [
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/studyhall/o/index.html",
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/notesdeck/o/index.html",
+                "https://b1cs.z13.web.core.windows.net/",
+                "https://ccuh.z20.web.core.windows.net/",
+                "https://wib8.z22.web.core.windows.net/",
+                "https://u49g.z19.web.core.windows.net/",
+                "https://d9xf.z14.web.core.windows.net/"
+            ]},
+            { category: "🌌 Void Interstellar", emoji: "🌌", links: [
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/birchnotes/o/index.html",
+                "https://objectstorage.us-ashburn-1.oraclecloud.com/n/idu89bu0aga2/b/quilldesk/o/index.html",
+                "https://v4wm.z13.web.core.windows.net/",
+                "https://wzf9.z19.web.core.windows.net/",
+                "https://tva2.z5.web.core.windows.net/",
+                "https://l1q7.z21.web.core.windows.net/",
+                "https://fvg8.z4.web.core.windows.net/"
+            ]},
+            { category: "💙 Ghost Voya", emoji: "💙", links: [
+                "https://voya.lukestadem.com",
+                "https://voya.molnarjozsias.ro",
+                "https://voy.texxus.com.ar"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://auror.texxus.com.ar",
+                "https://aurora.molnarjozsias.ro",
+                "https://aurora.lukestadem.com"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://flr.texxus.com.ar",
+                "https://flr.lukestadem.com",
+                "https://rest.bonjourcafe.md",
+                "https://frugell.laptopfix.es",
+                "https://face.starapetrzalka.sk",
+                "https://soft.surfaceflowtech.com",
+                "https://map.wilgaskin.com"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://solara.texxus.com.ar",
+                "https://solara.molnarjozsias.ro",
+                "https://solara.lukestadem.com"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lur.molnarjozsias.ro",
+                "https://lur.lukestadem.com"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cinewi.texxus.com.ar",
+                "https://cine.lukestadem.com"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://spc.molnarjozsias.ro",
+                "https://spc.lukestadem.com"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://tth.texxus.com.ar",
+                "https://tth.molnarjozsias.ro",
+                "https://tth.lukestadem.com"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utopiao.texxus.com.ar",
+                "https://utopia.molnarjozsias.ro",
+                "https://utopia.lukestadem.com"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://str.molnarjozsias.ro",
+                "https://str.lukestadem.com"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://fler.govt.hu",
+                "https://fler.oligra.com.ar",
+                "https://fler.esperanto.eu.org",
+                "https://sinso.stonepolishing.tw",
+                "https://care.yourplaceforskincare.com",
+                "https://world.4wardfabrications.com",
+                "https://safe.cafebohemio.cl",
+                "https://studio.purestereo.com",
+                "https://park.echoparklake.com",
+                "https://workout.gymbook.ai",
+                "https://lake.renacapark.com",
+                "https://sge.scarboroughgymelites.ca",
+                "https://math.themathdoctors.org"
+            ]},
+            { category: "💙 Ghost Voya", emoji: "💙", links: [
+                "https://voya.govt.hu",
+                "https://voya.polimont.com.br",
+                "https://voya.oligra.com.ar",
+                "https://voya.klauto.ch",
+                "https://voya.mysanctuary.org",
+                "https://voya.esperanto.eu.org"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://auroa.govt.hu",
+                "https://aurora.mysanctuary.org",
+                "https://aurora.oligra.com.ar",
+                "https://aurora.esperanto.eu.org"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://solra.govt.hu",
+                "https://solara.mysanctuary.org",
+                "https://solara.oligra.com.ar",
+                "https://solara.polimont.com.br"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cine.govt.hu",
+                "https://cinera.polimont.com.br",
+                "https://cinera.klauto.ch"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://stroi.govt.hu",
+                "https://stroberri.polimont.com.br",
+                "https://stroberri.oligra.com.ar",
+                "https://stroberri.klauto.ch",
+                "https://stroberri.mysanctuary.org",
+                "https://stroberri.esperanto.eu.org"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://spc.govt.hu",
+                "https://space.oligra.com.ar",
+                "https://space.mysanctuary.org"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://tthd.govt.hu",
+                "https://tttd.polimont.com.br",
+                "https://tttd.oligra.com.ar",
+                "https://tttd.klauto.ch"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://tt.govt.hu",
+                "https://tt.oligra.com.ar",
+                "https://tt.mysanctuary.org",
+                "https://tt.klauto.ch"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://styhb.govt.hu",
+                "https://studyhub.oligra.com.ar",
+                "https://studyhub.klauto.ch"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utp.govt.hu",
+                "https://utopia.oligra.com.ar",
+                "https://utopia.klauto.ch",
+                "https://utopia.mysanctuary.org"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lur.govt.hu",
+                "https://lur.klauto.ch",
+                "https://lur.oligra.com.ar"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://s3.amazonaws.com/caddyprep/index.html",
+                "https://caddyprep.s3.amazonaws.com/index.html",
+                "https://d24vuz79mn2wf6.cloudfront.net/",
+                "https://solra.govt.hu",
+                "https://solara.sramage.net",
+                "https://solara.sibmed.org.ru",
+                "https://solara.cmmcdox.com",
+                "https://solara.edbask.net",
+                "https://solara.cmmccrm.com"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://s3.amazonaws.com/lightspeeds/index.html",
+                "https://lightspeeds.s3.amazonaws.com/index.html",
+                "https://styhb.govt.hu",
+                "https://studyhub.sramage.net",
+                "https://studyhub.sibmed.org.ru",
+                "https://studyhub.edbask.net",
+                "https://studyhub.cmmcdox.com",
+                "https://studyhub.cmmccrm.com"
+            ]},
+            { category: "💙 Ghost Voya", emoji: "💙", links: [
+                "https://voya.govt.hu",
+                "https://voya.sramage.net",
+                "https://voya.sibmed.org.ru",
+                "https://voya.cmmcdox.com",
+                "https://voya.edbask.net",
+                "https://voya.cmmccrm.com"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://stroi.govt.hu",
+                "https://str.sramage.net",
+                "https://str.sibmed.org.ru",
+                "https://str.edbask.net",
+                "https://str.cmmcdox.com",
+                "https://str.cmmccrm.com"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://tt.govt.hu",
+                "https://tt.cmmccrm.com",
+                "https://tt.cmmcdox.com",
+                "https://tt.sibmed.org.ru",
+                "https://tt.edbask.net",
+                "https://tt.sramage.net"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lur.govt.hu",
+                "https://lunar.sramage.net",
+                "https://lunar.sibmed.org.ru",
+                "https://lunar.cmmcdox.com",
+                "https://lunar.edbask.net",
+                "https://lunar.cmmccrm.com"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utp.govt.hu",
+                "https://utopia.sramage.net",
+                "https://utopia.sibmed.org.ru",
+                "https://utopia.cmmcdox.com",
+                "https://utopia.edbask.net",
+                "https://utopia.cmmccrm.com"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://spc.govt.hu",
+                "https://spc.sramage.net",
+                "https://spc.sibmed.org.ru",
+                "https://spc.cmmcdox.com",
+                "https://spc.edbask.net",
+                "https://spc.cmmccrm.com"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://tthd.govt.hu",
+                "https://ttd.sramage.net",
+                "https://ttd.sibmed.org.ru",
+                "https://ttd.cmmcdox.com",
+                "https://ttd.edbask.net",
+                "https://ttd.cmmccrm.com"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cine.govt.hu",
+                "https://cimera.sramage.net",
+                "https://cimera.sibmed.org.ru",
+                "https://cimera.cmmcdox.com",
+                "https://cimera.edbask.net",
+                "https://cimera.cmmccrm.com"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://auroa.govt.hu",
+                "https://aurora.sramage.net",
+                "https://aurora.sibmed.org.ru",
+                "https://aurora.cmmcdox.com",
+                "https://aurora.edbask.net",
+                "https://aurora.cmmccrm.com"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://info.campfluxus.org",
+                "https://test.centrodiagnosticogenetico.com",
+                "https://gas.gsxpress.com.my",
+                "https://bad.host2go.net",
+                "https://event.iceage.com.my",
+                "https://fler.govt.hu",
+                "https://fler.sramage.net",
+                "https://fler.sibmed.org.ru",
+                "https://fler.cmmcdox.com",
+                "https://fler.edbask.net",
+                "https://fler.cmmccrm.com"
+            ]},
+            { category: "💙 Ghost Voya v2", emoji: "💙", links: [
+                "https://voya.vrhtrenerke.com",
+                "https://voya.sourcescs.com",
+                "https://voya.luene.ch",
+                "https://voya.maciu.net",
+                "https://voya.govt.hu"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://fler.vrhtrenerke.com",
+                "https://fler.sourcescs.com",
+                "https://fler.maciu.net",
+                "https://fler.luene.ch",
+                "https://fler.govt.hu",
+                "https://think.digitalminds.com.ar",
+                "https://gacia.abogaciadigital.ar",
+                "https://agent.daddigital.com",
+                "https://eldor.ellegisladordigital.com",
+                "https://digital.jakesthoughts.xyz",
+                "https://carpo.respetame.org",
+                "https://pet.gepsapets.com.ar",
+                "https://pet.peterbjorn.se",
+                "https://cat.pureplanetpets.com",
+                "https://philip.servicecafe.ro"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cine.vrhtrenerke.com",
+                "https://cine.sourcescs.com",
+                "https://cine.luene.ch",
+                "https://cine.maciu.net",
+                "https://cine.govt.hu"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://auroa.vrhtrenerke.com",
+                "https://auroa.sourcescs.com",
+                "https://auroa.luene.ch",
+                "https://auroa.maciu.net",
+                "https://auroa.govt.hu"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://solra.govt.hu",
+                "https://solra.luene.ch",
+                "https://solra.maciu.net",
+                "https://solra.sourcescs.com",
+                "https://solra.vrhtrenerke.com"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://tthd.vrhtrenerke.com",
+                "https://tthd.sourcescs.com",
+                "https://tthd.luene.ch",
+                "https://tthd.govt.hu",
+                "https://tthd.maciu.net"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://stroi.vrhtrenerke.com",
+                "https://stroi.sourcescs.com",
+                "https://stroi.luene.ch",
+                "https://stroi.maciu.net",
+                "https://stroi.govt.hu"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://spc.vrhtrenerke.com",
+                "https://spc.sourcescs.com",
+                "https://spc.luene.ch",
+                "https://spc.maciu.net",
+                "https://spc.govt.hu"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://tt.vrhtrenerke.com",
+                "https://tt.sourcescs.com",
+                "https://tt.luene.ch",
+                "https://tt.maciu.net",
+                "https://tt.govt.hu"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://styhb.vrhtrenerke.com",
+                "https://styhb.sourcescs.com",
+                "https://styhb.maciu.net",
+                "https://styhb.luene.ch",
+                "https://styhb.govt.hu"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lur.vrhtrenerke.com",
+                "https://lur.sourcescs.com",
+                "https://lur.luene.ch",
+                "https://lur.maciu.net",
+                "https://lur.govt.hu"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utp.vrhtrenerke.com",
+                "https://utp.sourcescs.com",
+                "https://utp.maciu.net",
+                "https://utp.luene.ch",
+                "https://utp.govt.hu"
+            ]},
+            { category: "🌌 Void Interstellar", emoji: "🌌", links: [
+                "https://q7wd.z20.web.core.windows.net/",
+                "https://mx4k.z22.web.core.windows.net/",
+                "https://pv9n.z14.web.core.windows.net/",
+                "https://rt3z.z9.web.core.windows.net/",
+                "https://hb6s.z13.web.core.windows.net/"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://s3.amazonaws.com/vbzatuq/index.html",
+                "https://vbzatuq.s3.amazonaws.com/index.html",
+                "https://d12whv3rc86mrm.cloudfront.net",
+                "https://tungtung.hornburst.com",
+                "https://tungtung.dialogsibir.ru"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://dt7z8lnu7fv0r.cloudfront.net/",
+                "https://studyhub.mysaol.com",
+                "https://studyhub.hornburst.com",
+                "https://stroberrii.dialogsibir.ru"
+            ]},
+            { category: "💙 Ghost Voya", emoji: "💙", links: [
+                "https://voya.mysaol.com",
+                "https://voya.hornburst.com",
+                "https://voya.dialogsibir.ru"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://aurora.mysaol.com",
+                "https://aurora.dialogsibir.ru",
+                "https://aurora.hornburst.com"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://fler.hornburst.com",
+                "https://fler.dialogsibir.ru"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cinera.hornburst.com",
+                "https://cinera.dialogsibir.ru"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://stroberri.hornburst.com",
+                "https://stroberri.dialogsibir.ru"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://solara.mysaol.com",
+                "https://solara.hornburst.com",
+                "https://solara.dialogsibir.ru"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://space.hornburst.com",
+                "https://space.dialogsibir.ru"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://triplethd.mysaol.com",
+                "https://triplethd.hornburst.com",
+                "https://triplethd.dialogsibir.ru"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utopia.hornburst.com",
+                "https://utopia.dialogsibir.ru"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lunar.mysaol.com",
+                "https://lunar.hornburst.com",
+                "https://lunar.dialogsibir.ru"
+            ]},
+            { category: "✨ Phantom Glim", emoji: "✨", links: [
+                "https://s3.amazonaws.com/glimstudy/index.html",
+                "https://s3.us-east-1.amazonaws.com/glimstudy/index.html",
+                "https://s3.dualstack.us-east-1.amazonaws.com/glimstudy/index.html"
+            ]},
+            { category: "🔔 TungTung Crypt", emoji: "🔔", links: [
+                "https://s3.amazonaws.com/leahh-5a8u/index.html",
+                "https://leahh-5a8u.s3.amazonaws.com/math.html",
+                "https://s3.amazonaws.com/lmeyo-cok1/index.html",
+                "https://lmeyo-cok1.s3.amazonaws.com/index.html",
+                "https://lmeyo-cok1.s3.us-east-1.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/ralsei/index.html",
+                "https://s3.us-east-1.amazonaws.com/ralsei/index.html",
+                "https://s3.dualstack.us-east-1.amazonaws.com/ralsei/index.html",
+                "https://ralsei.s3.amazonaws.com/index.html",
+                "https://ralsei.s3.us-east-1.amazonaws.com/index.html",
+                "https://ralsei.s3.dualstack.us-east-1.amazonaws.com/index.html",
+                "https://s3.amazonaws.com/lmeyo/index.html",
+                "https://s3.us-east-1.amazonaws.com/lmeyo/index.html",
+                "https://lmeyo.s3.amazonaws.com/index.html",
+                "https://jhkf.z21.web.core.windows.net",
+                "https://gy5k.z22.web.core.windows.net",
+                "https://yyef.z1.web.core.windows.net",
+                "https://zl07.z14.web.core.windows.net",
+                "https://rdud.z9.web.core.windows.net",
+                "https://tungtung.survet.cl",
+                "https://tungtung.nikeinvest.ro",
+                "https://tungtung.cpmecatronica.cl",
+                "https://tungtung.explosionlearning.org",
+                "https://tungtung.colegiosanmarcel.cl"
+            ]},
+            { category: "📚 Dark StudyHub", emoji: "📚", links: [
+                "https://s3.amazonaws.com/antixticy/index.html",
+                "https://antixticy.s3.amazonaws.com/index.html",
+                "https://studyhub.tokeslaszlo.ro",
+                "https://studyhub.explosionlearning.org",
+                "https://studyhub.actadigital.com.ar"
+            ]},
+            { category: "⚡ Dark SolaraOS", emoji: "⚡", links: [
+                "https://s3.amazonaws.com/solaraos/index.html",
+                "https://solaraos.s3.amazonaws.com/index.html",
+                "https://solaraos.s3.us-east-1.amazonaws.com/index.html",
+                "https://solara.tokeslaszlo.ro",
+                "https://solara.survet.cl",
+                "https://solara.explosionlearning.org",
+                "https://solara.lasersoft.net.au",
+                "https://solara.actadigital.com.ar"
+            ]},
+            { category: "🎬 Crypt Cinera", emoji: "🎬", links: [
+                "https://cinera.explosionlearning.org",
+                "https://cinera.actadigital.com.ar"
+            ]},
+            { category: "🌅 Blood Aurora", emoji: "🌅", links: [
+                "https://aurora.tokeslaszlo.ro",
+                "https://aurora.explosionlearning.org",
+                "https://aurora.actadigital.com.ar"
+            ]},
+            { category: "🏝️ Lost Utopia", emoji: "🏝️", links: [
+                "https://utopia.tokeslaszlo.ro",
+                "https://utopia.explosionlearning.org",
+                "https://utopia.actadigital.com.ar"
+            ]},
+            { category: "🎯 Cursed TripleT HD", emoji: "🎯", links: [
+                "https://triplethd.tokeslaszlo.ro",
+                "https://triplethd.survet.cl",
+                "https://triplethd.explosionlearning.org",
+                "https://triplethd.lasersoft.net.au",
+                "https://triplethd.actadigital.com.ar"
+            ]},
+            { category: "🚀 Void Space", emoji: "🚀", links: [
+                "https://space.explosionlearning.org",
+                "https://space.actadigital.com.ar"
+            ]},
+            { category: "💙 Ghost Voya", emoji: "💙", links: [
+                "https://voya.tokeslaszlo.ro",
+                "https://voya.explosionlearning.org",
+                "https://voya.actadigital.com.ar"
+            ]},
+            { category: "🍓 Blood Strawberri", emoji: "🍓", links: [
+                "https://stroberri.explosionlearning.org",
+                "https://stroberri.actadigital.com.ar"
+            ]},
+            { category: "🌙 Blood Moon Lunar", emoji: "🌙", links: [
+                "https://lunar.explosionlearning.org",
+                "https://lunar.actadigital.com.ar"
+            ]},
+            { category: "🌌 Void Interstellar", emoji: "🌌", links: [
+                "https://s3.amazonaws.com/bhow/index.html",
+                "https://s3.us-east-1.amazonaws.com/bhow/index.html",
+                "https://s3.dualstack.us-east-1.amazonaws.com/bhow/index.html"
+            ]},
+            { category: "🔥 Hell Flare", emoji: "🔥", links: [
+                "https://lab.contratoslab.cl",
+                "https://jell.jaypetroleum.com",
+                "https://maken.peterwilbers.nl",
+                "https://care.stpetersandstpauls.org",
+                "https://lab.evillabs.net",
+                "https://note.adis.web.id",
+                "https://max.brusin.net",
+                "https://lab.labgarreguevara.com.ar",
+                "https://mole.losmolles.com.ar",
+                "https://mess.mesca.ro",
+                "https://class.ehsclassof76.org",
+                "https://work.hyperlog.gr",
+                "https://study.innovacioneseducativas.com.mx",
+                "https://global.mrgshrimp.com",
+                "https://map.wayhomeapp.org"
+            ]},
+            { category: "🩸 Blood Kite", emoji: "🩸", links: [
+                "https://s3.amazonaws.com/kitestudy/index.html",
+                "https://s3.us-east-1.amazonaws.com/kitestudy/index.html",
+                "https://s3.dualstack.us-east-1.amazonaws.com/kitestudy/index.html",
+                "https://f5fy.z13.web.core.windows.net",
+                "https://ofiq.z19.web.core.windows.net",
+                "https://rg96.z5.web.core.windows.net",
+                "https://qb3p.z9.web.core.windows.net",
+                "https://tq7o.z4.web.core.windows.net"
+            ]}
+        ];
+
+        // ==================================================================
+        // 2. LOAD / SAVE
+        // ==================================================================
+        function loadData() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) return JSON.parse(stored);
+            } catch (e) {
+                console.warn('Failed to load stored data.');
+            }
+            return JSON.parse(JSON.stringify(DEFAULT_DATA));
+        }
+
+        function saveData(data) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.warn('Failed to save data.');
+            }
+        }
+
+        let rawSections = loadData();
+
+        // ==================================================================
+        // 3. BUILD CATEGORIES
+        // ==================================================================
+        function buildCategories(sections) {
+            const allUrls = new Set();
+            const categoryMap = new Map();
+
+            sections.forEach(section => {
+                const cat = section.category;
+                if (!categoryMap.has(cat)) {
+                    categoryMap.set(cat, {
+                        emoji: section.emoji || '🔗',
+                        links: new Set()
+                    });
+                }
+                const catData = categoryMap.get(cat);
+                section.links.forEach(url => {
+                    const clean = url.trim();
+                    if (clean && !allUrls.has(clean)) {
+                        allUrls.add(clean);
+                        catData.links.add(clean);
+                    }
+                });
+            });
+
+            for (let [cat, data] of categoryMap.entries()) {
+                if (data.links.size === 0) categoryMap.delete(cat);
+            }
+
+            const categoriesArray = Array.from(categoryMap.entries()).map(([name, data]) => ({
+                name,
+                emoji: data.emoji,
+                links: Array.from(data.links)
+            }));
+
+            categoriesArray.sort((a, b) => a.name.localeCompare(b.name));
+            return { categoriesArray, totalUrls: allUrls.size };
+        }
+
+        let { categoriesArray, totalUrls } = buildCategories(rawSections);
+
+        // ==================================================================
+        // 4. RENDER
+        // ==================================================================
+        const container = document.getElementById('categoriesContainer');
+        const searchInput = document.getElementById('searchInput');
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toastText');
+        const totalCountEl = document.getElementById('totalCount');
+
+        let toastTimer = null;
+
+        function showToast(message) {
+            toastText.textContent = message;
+            toast.classList.add('show');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+
+        async function copyLink(url) {
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('✅ Link copied to the void');
+            } catch (err) {
+                const textarea = document.createElement('textarea');
+                textarea.value = url;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('📋 Link copied');
+            }
+        }
+
+        function openInNewTab(url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+
+        function openInAboutBlank(url) {
+            const win = window.open('about:blank', '_blank');
+            if (win) {
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>7VxProxy · redirecting...</title></head>
+                    <body style="background:#050005; color:#dc2626; font-family:Georgia,serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; flex-direction:column; gap:20px;">
+                        <p style="font-size:14px; letter-spacing:4px; text-transform:uppercase;">⏳ summoning ${url.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                        <script>window.location.href = "${url.replace(/"/g, '\\"')}";<\/script>
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function createCard(url) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const urlDiv = document.createElement('div');
+            urlDiv.className = 'url-display';
+            urlDiv.innerHTML = `<i class="fas fa-link"></i> ${escapeHtml(url)}`;
+
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'btn-group';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'btn btn-copy';
+            copyBtn.innerHTML = `<i class="fas fa-copy"></i> Copy`;
+            copyBtn.addEventListener('click', (e) => { e.stopPropagation(); copyLink(url); });
+
+            const openBtn = document.createElement('button');
+            openBtn.className = 'btn btn-open';
+            openBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> Open`;
+            openBtn.addEventListener('click', (e) => { e.stopPropagation(); openInNewTab(url); });
+
+            const blankBtn = document.createElement('button');
+            blankBtn.className = 'btn btn-blank';
+            blankBtn.innerHTML = `<i class="fas fa-window-restore"></i> about:blank`;
+            blankBtn.addEventListener('click', (e) => { e.stopPropagation(); openInAboutBlank(url); });
+
+            btnGroup.appendChild(copyBtn);
+            btnGroup.appendChild(openBtn);
+            btnGroup.appendChild(blankBtn);
+
+            card.appendChild(urlDiv);
+            card.appendChild(btnGroup);
+            return card;
+        }
+
+        function render(filterText = '') {
+            const term = filterText.trim().toLowerCase();
+            container.innerHTML = '';
+
+            let totalVisible = 0;
+            let delayIndex = 0;
+
+            categoriesArray.forEach(cat => {
+                const filteredLinks = term
+                    ? cat.links.filter(url => url.toLowerCase().includes(term))
+                    : cat.links;
+
+                if (filteredLinks.length === 0) return;
+
+                totalVisible += filteredLinks.length;
+
+                const section = document.createElement('div');
+                section.className = 'category reveal';
+                if (delayIndex < 6) section.classList.add(`reveal-delay-${delayIndex + 1}`);
+                delayIndex = (delayIndex + 1) % 6;
+
+                const header = document.createElement('div');
+                header.className = 'category-header';
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'category-title';
+                titleDiv.innerHTML = `
+                    <span class="emoji-badge">${cat.emoji}</span>
+                    ${escapeHtml(cat.name)}
+                    <span class="count-badge">${filteredLinks.length}</span>
+                `;
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'category-actions';
+
+                const copyAllBtn = document.createElement('button');
+                copyAllBtn.className = 'btn-sm';
+                copyAllBtn.innerHTML = `<i class="fas fa-copy"></i> Copy All`;
+                copyAllBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const allText = filteredLinks.join('\n');
+                    navigator.clipboard.writeText(allText).then(() => {
+                        showToast(`📋 ${filteredLinks.length} links copied`);
+                    }).catch(() => {
+                        const ta = document.createElement('textarea');
+                        ta.value = allText;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        showToast(`📋 ${filteredLinks.length} links copied`);
+                    });
+                });
+
+                const openAllBtn = document.createElement('button');
+                openAllBtn.className = 'btn-sm';
+                openAllBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> Open All`;
+                openAllBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    filteredLinks.forEach((url, idx) => {
+                        setTimeout(() => {
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                        }, idx * 120);
+                    });
+                    showToast(`🌐 Opening ${filteredLinks.length} tabs...`);
+                });
+
+                actionsDiv.appendChild(copyAllBtn);
+                actionsDiv.appendChild(openAllBtn);
+
+                header.appendChild(titleDiv);
+                header.appendChild(actionsDiv);
+
+                const grid = document.createElement('div');
+                grid.className = 'link-grid';
+
+                filteredLinks.forEach(url => {
+                    grid.appendChild(createCard(url));
+                });
+
+                section.appendChild(header);
+                section.appendChild(grid);
+                container.appendChild(section);
+            });
+
+            if (totalVisible === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'no-result';
+                emptyDiv.innerHTML = `<i class="fas fa-ghost" style="margin-right: 12px; opacity: 0.6;"></i> Nothing found in the darkness for "${escapeHtml(filterText)}"`;
+                container.appendChild(emptyDiv);
+            }
+
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.reveal').forEach(el => {
+                    observer.observe(el);
+                });
+            });
+        }
+
+        // ==================================================================
+        // 5. SCROLL REVEAL
+        // ==================================================================
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -40px 0px'
+        });
+
+        function observeAllReveals() {
+            document.querySelectorAll('.reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        totalCountEl.textContent = totalUrls;
+        render();
+        observeAllReveals();
+
+        searchInput.addEventListener('input', (e) => {
+            render(e.target.value);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '/' && !e.target.matches('input, textarea, select')) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        // ==================================================================
+        // 6. ADMIN PANEL
+        // ==================================================================
+        const adminOverlay = document.getElementById('adminOverlay');
+        const adminLoginView = document.getElementById('adminLoginView');
+        const adminDashboardView = document.getElementById('adminDashboardView');
+        const adminPasswordInput = document.getElementById('adminPasswordInput');
+        const adminError = document.getElementById('adminError');
+        const adminLinkList = document.getElementById('adminLinkList');
+        const adminLinkCount = document.getElementById('adminLinkCount');
+        const newLinkUrl = document.getElementById('newLinkUrl');
+        const newLinkCategory = document.getElementById('newLinkCategory');
+        const newCategoryName = document.getElementById('newCategoryName');
+        const newCategoryEmoji = document.getElementById('newCategoryEmoji');
+
+        let isAdminAuthenticated = false;
+
+        function openAdmin() {
+            adminOverlay.classList.add('active');
+            if (isAdminAuthenticated) {
+                showAdminDashboard();
+            } else {
+                showAdminLogin();
+            }
+        }
+
+        function closeAdmin() {
+            adminOverlay.classList.remove('active');
+            adminPasswordInput.value = '';
+            adminError.textContent = '';
+        }
+
+        function showAdminLogin() {
+            adminLoginView.style.display = 'block';
+            adminDashboardView.style.display = 'none';
+            setTimeout(() => adminPasswordInput.focus(), 100);
+        }
+
+        function showAdminDashboard() {
+            adminLoginView.style.display = 'none';
+            adminDashboardView.style.display = 'block';
+            refreshAdminData();
+        }
+
+        function checkAdminPassword() {
+            const entered = adminPasswordInput.value;
+            if (entered === ADMIN_PASSWORD) {
+                isAdminAuthenticated = true;
+                adminError.textContent = '';
+                adminPasswordInput.value = '';
+                showAdminDashboard();
+                showToast('🔓 Access granted');
+            } else {
+                adminError.textContent = '❌ Wrong password. The spirits are angry.';
+                adminPasswordInput.value = '';
+                adminPasswordInput.focus();
+                adminPasswordInput.style.borderColor = '#ff2d2d';
+                setTimeout(() => { adminPasswordInput.style.borderColor = ''; }, 800);
+            }
+        }
+
+        function refreshAdminData() {
+            const currentCat = newLinkCategory.value;
+            newLinkCategory.innerHTML = '<option value="">— Select Category —</option>';
+            categoriesArray.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.name;
+                opt.textContent = `${cat.emoji} ${cat.name}`;
+                newLinkCategory.appendChild(opt);
+            });
+            if (currentCat) newLinkCategory.value = currentCat;
+            renderAdminLinkList();
+        }
+
+        function renderAdminLinkList() {
+            adminLinkList.innerHTML = '';
+            let count = 0;
+
+            categoriesArray.forEach(cat => {
+                cat.links.forEach(url => {
+                    count++;
+                    const item = document.createElement('div');
+                    item.className = 'admin-link-item';
+
+                    const info = document.createElement('div');
+                    info.className = 'link-info';
+                    info.innerHTML = `
+                        <div class="link-url">${escapeHtml(url)}</div>
+                        <div class="link-category"><i class="fas fa-tag"></i> ${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</div>
+                    `;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'link-actions';
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                    deleteBtn.title = 'Delete link';
+                    deleteBtn.addEventListener('click', () => {
+                        if (confirm(`Banish this link to the void?\n${url}`)) {
+                            deleteLinkFromData(cat.name, url);
+                        }
+                    });
+
+                    actions.appendChild(deleteBtn);
+                    item.appendChild(info);
+                    item.appendChild(actions);
+                    adminLinkList.appendChild(item);
+                });
+            });
+
+            adminLinkCount.textContent = count;
+
+            if (count === 0) {
+                adminLinkList.innerHTML = '<div style="text-align:center; color:#5a3a3a; padding:20px; font-style:italic;">The void is empty. Add a link above.</div>';
+            }
+        }
+
+        function addNewLink() {
+            const url = newLinkUrl.value.trim();
+            const categoryName = newLinkCategory.value;
+
+            if (!url) {
+                showToast('⚠️ Enter a URL');
+                newLinkUrl.focus();
+                return;
+            }
+
+            if (!categoryName) {
+                showToast('⚠️ Select a category');
+                newLinkCategory.focus();
+                return;
+            }
+
+            let section = rawSections.find(s => s.category === categoryName);
+            if (!section) {
+                const emojiMatch = categoryName.match(/^(\p{Emoji})/u);
+                const emoji = emojiMatch ? emojiMatch[1] : '🔗';
+                section = { category: categoryName, emoji, links: [] };
+                rawSections.push(section);
+            }
+
+            const allUrls = new Set();
+            rawSections.forEach(s => s.links.forEach(u => allUrls.add(u)));
+            if (allUrls.has(url)) {
+                showToast('⚠️ This link already exists in the crypt!');
+                return;
+            }
+
+            section.links.push(url);
+            saveData(rawSections);
+
+            const built = buildCategories(rawSections);
+            categoriesArray = built.categoriesArray;
+            totalUrls = built.totalUrls;
+            totalCountEl.textContent = totalUrls;
+
+            render(searchInput.value);
+            refreshAdminData();
+
+            newLinkUrl.value = '';
+            showToast(`✅ Link added to ${categoryName}`);
+        }
+
+        function addNewCategory() {
+            const name = newCategoryName.value.trim();
+            let emoji = newCategoryEmoji.value.trim();
+
+            if (!name) {
+                showToast('⚠️ Enter a category name');
+                newCategoryName.focus();
+                return;
+            }
+
+            if (!emoji) {
+                const match = name.match(/^(\p{Emoji})/u);
+                emoji = match ? match[1] : '🔗';
+            }
+
+            if (rawSections.some(s => s.category === name)) {
+                showToast('⚠️ Category already exists!');
+                return;
+            }
+
+            rawSections.push({ category: name, emoji, links: [] });
+            saveData(rawSections);
+
+            const built = buildCategories(rawSections);
+            categoriesArray = built.categoriesArray;
+            totalUrls = built.totalUrls;
+            totalCountEl.textContent = totalUrls;
+
+            render(searchInput.value);
+            refreshAdminData();
+
+            newCategoryName.value = '';
+            newCategoryEmoji.value = '';
+            showToast(`✅ Category "${name}" created`);
+        }
+
+        function deleteLinkFromData(categoryName, url) {
+            const section = rawSections.find(s => s.category === categoryName);
+            if (section) {
+                const idx = section.links.indexOf(url);
+                if (idx > -1) section.links.splice(idx, 1);
+            }
+
+            rawSections = rawSections.filter(s => s.links.length > 0);
+            saveData(rawSections);
+
+            const built = buildCategories(rawSections);
+            categoriesArray = built.categoriesArray;
+            totalUrls = built.totalUrls;
+            totalCountEl.textContent = totalUrls;
+
+            render(searchInput.value);
+            refreshAdminData();
+            showToast('🗑️ Link banished');
+        }
+
+        adminOverlay.addEventListener('click', (e) => {
+            if (e.target === adminOverlay) closeAdmin();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && adminOverlay.classList.contains('active')) {
+                closeAdmin();
+            }
+        });
+
+        // ==================================================================
+        // 7. PARALLAX FOG
+        // ==================================================================
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    const scrolled = window.pageYOffset;
+                    const orbs = document.querySelectorAll('.fog-orb');
+                    orbs.forEach((orb, i) => {
+                        const speed = (i + 1) * 0.05;
+                        orb.style.transform = `translateY(${scrolled * speed}px)`;
+                    });
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+    </script>
+</body>
+</html>
